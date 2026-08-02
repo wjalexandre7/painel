@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel da Equipe</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root{ --azul:#0067a3; --coluna:#ebecf0; --cartao:#fff; --texto:#172b4d; --cinza:#5e6c84; }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:linear-gradient(135deg,#0079bf,#026aa7); color:var(--texto); display:flex; flex-direction:column; height:100vh; overflow:hidden;}
+
+  header{display:flex; align-items:center; gap:12px; padding:12px 18px; background:rgba(0,0,0,.18); color:#fff; flex-shrink:0;}
+  header h1{font-size:19px; font-weight:700; cursor:pointer; padding:4px 8px; border-radius:5px;}
+  header h1:hover{background:rgba(255,255,255,.18);}
+  header .direita{margin-left:auto; display:flex; align-items:center; gap:12px; font-size:13px;}
+  header .quem{opacity:.9;}
+  header .sair{background:rgba(255,255,255,.2); color:#fff; border:none; border-radius:5px; padding:6px 12px; cursor:pointer; font-size:13px;}
+  header .sair:hover{background:rgba(255,255,255,.32);}
+  #status{font-size:12px; opacity:.75;}
+
+  .board{flex:1; display:flex; align-items:flex-start; gap:14px; padding:16px; overflow-x:auto; overflow-y:hidden;}
+  .lista{background:var(--coluna); border-radius:12px; width:290px; min-width:290px; max-height:100%; display:flex; flex-direction:column; padding:8px; box-shadow:0 1px 3px rgba(0,0,0,.2);}
+  .lista-head{display:flex; align-items:center; gap:6px; padding:4px 6px 8px;}
+  .lista-head input{flex:1; border:none; background:transparent; font-weight:700; font-size:15px; color:var(--texto); padding:4px 6px; border-radius:5px;}
+  .lista-head input:focus{outline:none; background:#fff; box-shadow:inset 0 0 0 2px var(--azul);}
+  .apagar-lista{border:none; background:transparent; color:var(--cinza); cursor:pointer; font-size:16px; width:26px; height:26px; border-radius:5px; flex-shrink:0;}
+  .apagar-lista:hover{background:#dcdfe4; color:#c0392b;}
+  .cartoes{overflow-y:auto; flex:1; min-height:6px; padding:2px;}
+  .cartao{background:var(--cartao); border-radius:8px; padding:9px 11px; margin-bottom:8px; box-shadow:0 1px 2px rgba(9,30,66,.25); cursor:pointer; font-size:14px; line-height:1.35;}
+  .cartao:hover{background:#f7f8f9;}
+  .cartao .etqs{display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px;}
+  .etq{height:8px; width:38px; border-radius:4px;}
+  .cartao .titulo{word-break:break-word;}
+  .cartao .rodape{display:flex; gap:12px; margin-top:7px; color:var(--cinza); font-size:12px; align-items:center;}
+  .cartao .rodape span{display:inline-flex; align-items:center; gap:3px;}
+  .add-cartao{border:none; background:transparent; color:var(--cinza); text-align:left; cursor:pointer; padding:8px; border-radius:6px; font-size:14px; width:100%;}
+  .add-cartao:hover{background:#dcdfe4; color:var(--texto);}
+  .composer{padding:2px;}
+  .composer textarea{width:100%; border:none; border-radius:8px; padding:9px 11px; font-size:14px; resize:none; box-shadow:0 1px 2px rgba(9,30,66,.25); font-family:inherit; min-height:56px;}
+  .composer textarea:focus{outline:none; box-shadow:inset 0 0 0 2px var(--azul);}
+  .composer .acoes{display:flex; gap:8px; align-items:center; margin-top:6px;}
+  .btn{border:none; border-radius:6px; padding:7px 14px; font-size:14px; cursor:pointer; font-weight:600;}
+  .btn-p{background:var(--azul); color:#fff;} .btn-p:hover{background:#055a8c;}
+  .btn-x{background:transparent; color:var(--cinza); font-size:20px; padding:2px 8px;} .btn-x:hover{color:var(--texto);}
+  .add-lista{background:rgba(255,255,255,.24); color:#fff; border-radius:12px; width:290px; min-width:290px; padding:12px; cursor:pointer; border:none; text-align:left; font-size:15px; font-weight:600;}
+  .add-lista:hover{background:rgba(255,255,255,.32);}
+
+  .overlay{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; z-index:50;}
+  .overlay.ativo{display:flex;}
+  .modal{background:#f4f5f7; border-radius:12px; width:100%; max-width:560px; padding:20px 22px 26px; box-shadow:0 8px 30px rgba(0,0,0,.35);}
+  .modal label{display:block; font-weight:700; font-size:13px; margin:16px 0 6px; color:#42526e;}
+  .modal .em-lista{font-size:12px; color:var(--cinza); margin-bottom:6px;}
+  .modal input[type=text], .modal textarea{width:100%; border:1px solid #dfe1e6; border-radius:6px; padding:9px 11px; font-size:14px; font-family:inherit; background:#fff;}
+  .modal textarea{min-height:80px; resize:vertical;}
+  .modal input:focus, .modal textarea:focus{outline:none; border-color:var(--azul); box-shadow:0 0 0 2px rgba(0,103,163,.25);}
+  .paleta{display:flex; gap:8px; flex-wrap:wrap;}
+  .paleta .cor{width:44px; height:26px; border-radius:5px; cursor:pointer; border:2px solid transparent;}
+  .paleta .cor.sel{border-color:#172b4d; box-shadow:0 0 0 2px #fff inset;}
+  .coments{margin-top:6px; display:flex; flex-direction:column; gap:8px;}
+  .coment{background:#fff; border-radius:8px; padding:9px 11px; font-size:14px; box-shadow:0 1px 2px rgba(9,30,66,.2); position:relative;}
+  .coment .meta{font-size:11px; color:var(--cinza); margin-top:4px;}
+  .coment .del{position:absolute; top:6px; right:8px; border:none; background:none; color:var(--cinza); cursor:pointer; font-size:13px;}
+  .coment .del:hover{color:#c0392b;}
+  .add-coment{display:flex; gap:8px; margin-top:8px;} .add-coment input{flex:1;}
+  .modal-rodape{display:flex; justify-content:space-between; align-items:center; margin-top:22px;}
+  .btn-apagar{background:#fbe9e7; color:#c0392b;} .btn-apagar:hover{background:#f5c6c0;}
+  .sortable-ghost{opacity:.4;}
+  .vazio{color:var(--cinza); font-size:12px; text-align:center; padding:6px;}
+
+  /* Telas de login / aviso */
+  .tela{position:fixed; inset:0; display:none; align-items:center; justify-content:center; padding:24px; z-index:60;}
+  .tela.ativo{display:flex;}
+  .caixa{background:#fff; border-radius:14px; padding:34px 30px; max-width:420px; width:100%; text-align:center; box-shadow:0 10px 40px rgba(0,0,0,.3);}
+  .caixa h2{font-size:20px; margin-bottom:8px; color:var(--texto);}
+  .caixa p{color:var(--cinza); font-size:14px; line-height:1.5; margin-bottom:20px;}
+  .caixa .logo{font-size:34px; margin-bottom:10px;}
+  #gbtn{display:flex; justify-content:center;}
+  .aviso-cfg{background:#fff8e1; border:1px solid #ffe082; color:#7a5b00; font-size:13px; border-radius:8px; padding:12px; text-align:left; margin-top:14px; line-height:1.5;}
+  code{background:#eef; padding:1px 5px; border-radius:4px; font-size:12px;}
+
+  @media (max-width:600px){ .board{padding:12px; gap:10px;} .lista,.add-lista{width:84vw; min-width:84vw;} }
+</style>
+</head>
+<body>
+
+<header id="cabecalho" style="display:none;">
+  <h1 id="tituloPainel" title="Clique para renomear">Painel da Equipe</h1>
+  <div class="direita">
+    <span id="status"></span>
+    <span class="quem" id="quem"></span>
+    <button class="sair" id="btnSair">Sair</button>
+  </div>
+</header>
+
+<div class="board" id="board" style="display:none;"></div>
+
+<!-- Tela de login -->
+<div class="tela" id="telaLogin">
+  <div class="caixa">
+    <div class="logo">🗂️</div>
+    <h2>Painel da Equipe</h2>
+    <p>Entre com sua conta Google para acessar o painel.</p>
+    <div id="gbtn"></div>
+    <div class="aviso-cfg" id="avisoConfig" style="display:none;">
+      ⚙️ <b>Falta configurar.</b> Abra este arquivo e preencha <code>CLIENT_ID</code> e <code>BACKEND_URL</code> lá no topo do código, conforme o guia em PDF.
+    </div>
+    <div class="aviso-cfg" id="avisoLocal" style="display:none;">
+      ⚠️ O login do Google não funciona abrindo o arquivo direto do computador. Publique o painel num endereço <code>https</code> (ex: GitHub Pages), como explica o guia.
+    </div>
+  </div>
+</div>
+
+<!-- Tela de acesso negado -->
+<div class="tela" id="telaNegado">
+  <div class="caixa">
+    <div class="logo">🚫</div>
+    <h2>Acesso negado</h2>
+    <p id="negadoTexto">Seu e-mail não está na lista de autorizados. Peça ao administrador do painel para adicionar você.</p>
+    <button class="btn btn-p" onclick="sair()">Tentar com outra conta</button>
+  </div>
+</div>
+
+<!-- Modal do cartão -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div style="flex:1;">
+        <label style="margin-top:0;">Título</label>
+        <input type="text" id="mTitulo">
+      </div>
+      <button class="btn btn-x" id="fecharModal" style="margin-left:8px;">×</button>
+    </div>
+    <div class="em-lista" id="mEmLista"></div>
+    <label>Etiquetas</label>
+    <div class="paleta" id="mPaleta"></div>
+    <label>Descrição</label>
+    <textarea id="mDesc" placeholder="Adicione mais detalhes..."></textarea>
+    <label>Comentários</label>
+    <div class="coments" id="mComents"></div>
+    <div class="add-coment">
+      <input type="text" id="mNovoComent" placeholder="Escreva um comentário...">
+      <button class="btn btn-p" id="mAddComent">Enviar</button>
+    </div>
+    <div class="modal-rodape">
+      <button class="btn btn-apagar" id="mApagar">Excluir cartão</button>
+      <button class="btn btn-p" id="mSalvar">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- SortableJS para arrastar (com o dedo ou o mouse) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<script>
+/* =====================================================================
+   CONFIGURAÇÃO — preencha estes dois valores (veja o guia em PDF)
+   ===================================================================== */
+var CLIENT_ID   = 'COLE_AQUI_SEU_CLIENT_ID.apps.googleusercontent.com';
+var BACKEND_URL = 'COLE_AQUI_A_URL_DO_APPS_SCRIPT_/exec';
+/* ===================================================================== */
+
+var CORES = ["#61bd4f","#f2d600","#ff9f1a","#eb5a46","#c377e0","#0079bf","#00c2e0","#ff78cb"];
+var idToken = null, user = null, estado = null;
+var modalAberto = false, composerAberto = false, cartaoAberto = null, pollTimer = null;
+
+var configOK = CLIENT_ID.indexOf('COLE_AQUI') === -1 && BACKEND_URL.indexOf('COLE_AQUI') === -1;
+
+// ---------------- Comunicação com o servidor ----------------
+async function api(payload){
+  payload.token = idToken;
+  payload.nome  = user ? user.nome : '';
+  // corpo como texto puro = requisição "simples" -> evita erro de CORS do Apps Script
+  var r = await fetch(BACKEND_URL, { method:'POST', body: JSON.stringify(payload) });
+  var data = await r.json();
+  if(data && data.error){
+    if(data.error === 'token_invalido'){ mostrarLogin(); throw new Error('login'); }
+    if(data.error === 'nao_autorizado'){ mostrarNegado(data.email); throw new Error('negado'); }
+    throw new Error(data.error);
+  }
+  return data;
+}
+
+async function enviarOp(op){
+  setStatus('salvando…');
+  try{
+    var d = await api({ action:'op', op:op });
+    estado = d.board; render(); setStatus('salvo ✓');
+  }catch(e){ if(e.message!=='login' && e.message!=='negado') setStatus('erro ao salvar'); }
+}
+
+async function carregar(){
+  try{
+    var d = await api({ action:'get' });
+    user = d.user; estado = d.board;
+    entrarNoPainel(); render(); iniciarPolling();
+  }catch(e){ /* telas já tratadas */ }
+}
+
+function iniciarPolling(){
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async function(){
+    if(modalAberto || composerAberto) return;
+    try{
+      var d = await api({ action:'get' });
+      if(d.board && d.board.versao !== estado.versao){ estado = d.board; render(); }
+    }catch(e){}
+  }, 6000);
+}
+
+function setStatus(t){
+  var s=document.getElementById('status'); s.textContent=t;
+  if(t==='salvo ✓') setTimeout(function(){ if(s.textContent==='salvo ✓') s.textContent=''; }, 1500);
+}
+
+// ---------------------- Login (Google) ----------------------
+function iniciarGoogle(){
+  if(!configOK){ document.getElementById('avisoConfig').style.display='block'; return; }
+  if(location.protocol === 'file:'){ document.getElementById('avisoLocal').style.display='block'; return; }
+  if(typeof google === 'undefined' || !google.accounts){ setTimeout(iniciarGoogle, 300); return; }
+  google.accounts.id.initialize({ client_id: CLIENT_ID, callback: aoLogar, auto_select: true });
+  google.accounts.id.renderButton(document.getElementById('gbtn'),
+    { theme:'filled_blue', size:'large', text:'signin_with', shape:'pill', locale:'pt-BR' });
+  google.accounts.id.prompt();
+}
+
+function aoLogar(resp){
+  idToken = resp.credential;
+  try{
+    var p = JSON.parse(decodeURIComponent(escape(atob(idToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')))));
+    user = { email:(p.email||'').toLowerCase(), nome: p.name || p.email };
+  }catch(e){ user = { email:'', nome:'' }; }
+  carregar();
+}
+
+function mostrarLogin(){ tela('telaLogin'); idToken=null; if(pollTimer) clearInterval(pollTimer); }
+function mostrarNegado(email){
+  if(email) document.getElementById('negadoTexto').textContent =
+    'O e-mail ' + email + ' não está na lista de autorizados. Peça ao administrador para adicionar você.';
+  tela('telaNegado');
+}
+function entrarNoPainel(){
+  document.getElementById('telaLogin').classList.remove('ativo');
+  document.getElementById('telaNegado').classList.remove('ativo');
+  document.getElementById('cabecalho').style.display='flex';
+  document.getElementById('board').style.display='flex';
+  document.getElementById('quem').textContent = user ? ('👤 ' + user.nome) : '';
+}
+function tela(id){
+  ['telaLogin','telaNegado'].forEach(function(t){ document.getElementById(t).classList.toggle('ativo', t===id); });
+  document.getElementById('cabecalho').style.display='none';
+  document.getElementById('board').style.display='none';
+}
+function sair(){
+  idToken=null; user=null; if(pollTimer) clearInterval(pollTimer);
+  if(typeof google!=='undefined' && google.accounts) google.accounts.id.disableAutoSelect();
+  mostrarLogin();
+}
+document.getElementById('btnSair').addEventListener('click', sair);
+
+// ------------------------ Renderização ----------------------
+var board = document.getElementById('board');
+
+function render(){
+  document.getElementById('tituloPainel').textContent = estado.titulo;
+  board.innerHTML = '';
+  estado.listas.forEach(function(l){ board.appendChild(criarLista(l)); });
+  board.appendChild(criarAddLista());
+  ativarDrag();
+}
+
+function criarLista(lista){
+  var el=document.createElement('div'); el.className='lista'; el.dataset.id=lista.id;
+  var head=document.createElement('div'); head.className='lista-head';
+  var inp=document.createElement('input'); inp.value=lista.titulo;
+  inp.addEventListener('change', function(){ enviarOp({tipo:'renameLista', listaId:lista.id, titulo:inp.value.trim()||'Sem título'}); });
+  var del=document.createElement('button'); del.className='apagar-lista'; del.textContent='🗑'; del.title='Excluir lista';
+  del.addEventListener('click', function(){ if(confirm('Excluir a lista "'+lista.titulo+'" e seus cartões?')) enviarOp({tipo:'deleteLista', listaId:lista.id}); });
+  head.appendChild(inp); head.appendChild(del); el.appendChild(head);
+
+  var cont=document.createElement('div'); cont.className='cartoes'; cont.dataset.id=lista.id;
+  lista.cartoes.forEach(function(c){ cont.appendChild(criarCartao(c)); });
+  el.appendChild(cont);
+  el.appendChild(criarComposer(lista));
+  return el;
+}
+
+function criarCartao(c){
+  var el=document.createElement('div'); el.className='cartao'; el.dataset.id=c.id;
+  if(c.etiquetas && c.etiquetas.length){
+    var et=document.createElement('div'); et.className='etqs';
+    c.etiquetas.forEach(function(cor){ var s=document.createElement('span'); s.className='etq'; s.style.background=cor; et.appendChild(s); });
+    el.appendChild(et);
+  }
+  var t=document.createElement('div'); t.className='titulo'; t.textContent=c.titulo; el.appendChild(t);
+  var nc=(c.comentarios||[]).length, temDesc=c.desc && c.desc.trim();
+  if(nc||temDesc){
+    var rod=document.createElement('div'); rod.className='rodape';
+    if(temDesc) rod.innerHTML+='<span title="Tem descrição">≡</span>';
+    if(nc) rod.innerHTML+='<span title="Comentários">💬 '+nc+'</span>';
+    el.appendChild(rod);
+  }
+  el.addEventListener('click', function(){ abrirModal(c.id); });
+  return el;
+}
+
+function criarComposer(lista){
+  var wrap=document.createElement('div'); wrap.className='composer';
+  var btn=document.createElement('button'); btn.className='add-cartao'; btn.textContent='+ Adicionar um cartão';
+  wrap.appendChild(btn);
+  btn.addEventListener('click', function(){
+    composerAberto=true; wrap.innerHTML='';
+    var ta=document.createElement('textarea'); ta.placeholder='Título do cartão...';
+    var acoes=document.createElement('div'); acoes.className='acoes';
+    var add=document.createElement('button'); add.className='btn btn-p'; add.textContent='Adicionar';
+    var x=document.createElement('button'); x.className='btn btn-x'; x.textContent='×';
+    acoes.appendChild(add); acoes.appendChild(x); wrap.appendChild(ta); wrap.appendChild(acoes); ta.focus();
+    function confirmar(){ var txt=ta.value.trim(); composerAberto=false; if(txt) enviarOp({tipo:'addCartao', listaId:lista.id, titulo:txt}); else fechar(); }
+    function fechar(){ composerAberto=false; var novo=criarComposer(lista); wrap.replaceWith(novo); }
+    add.addEventListener('click', confirmar); x.addEventListener('click', fechar);
+    ta.addEventListener('keydown', function(e){ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); confirmar(); } });
+  });
+  return wrap;
+}
+
+function criarAddLista(){
+  var btn=document.createElement('button'); btn.className='add-lista'; btn.textContent='+ Adicionar outra lista';
+  btn.addEventListener('click', function(){
+    var nome=prompt('Nome da nova lista:'); if(nome && nome.trim()) enviarOp({tipo:'addLista', titulo:nome.trim()});
+  });
+  return btn;
+}
+
+// ------------------------ Arrastar --------------------------
+function ativarDrag(){
+  if(typeof Sortable==='undefined') return;
+  document.querySelectorAll('.cartoes').forEach(function(cont){
+    new Sortable(cont, { group:'cartoes', animation:150, ghostClass:'sortable-ghost', draggable:'.cartao', delay:120, delayOnTouchOnly:true,
+      onEnd:function(evt){
+        var cartaoId=evt.item.dataset.id, destinoId=evt.to.dataset.id, indice=evt.newIndex;
+        enviarOp({tipo:'moveCartao', cartaoId:cartaoId, destinoId:destinoId, indice:indice});
+      }
+    });
+  });
+}
+
+// ------------------------- Modal ----------------------------
+var overlay=document.getElementById('overlay');
+function acharCartaoLocal(id){
+  for(var i=0;i<estado.listas.length;i++){ var c=estado.listas[i].cartoes.filter(function(x){return x.id===id;})[0]; if(c) return {lista:estado.listas[i], cartao:c}; }
+  return null;
+}
+function abrirModal(id){
+  var r=acharCartaoLocal(id); if(!r) return;
+  cartaoAberto=id; modalAberto=true;
+  document.getElementById('mTitulo').value=r.cartao.titulo;
+  document.getElementById('mDesc').value=r.cartao.desc||'';
+  document.getElementById('mEmLista').textContent='na lista: '+r.lista.titulo;
+  window._etqTemp = (r.cartao.etiquetas||[]).slice();
+  renderPaleta(); renderComents(r.cartao);
+  overlay.classList.add('ativo');
+}
+function fecharModal(){ overlay.classList.remove('ativo'); modalAberto=false; cartaoAberto=null; }
+
+function renderPaleta(){
+  var p=document.getElementById('mPaleta'); p.innerHTML='';
+  CORES.forEach(function(cor){
+    var d=document.createElement('div'); d.className='cor'; d.style.background=cor;
+    if(window._etqTemp.indexOf(cor)>=0) d.classList.add('sel');
+    d.addEventListener('click', function(){
+      var i=window._etqTemp.indexOf(cor);
+      if(i>=0) window._etqTemp.splice(i,1); else window._etqTemp.push(cor);
+      renderPaleta();
+    });
+    p.appendChild(d);
+  });
+}
+function renderComents(c){
+  var box=document.getElementById('mComents'); box.innerHTML='';
+  (c.comentarios||[]).forEach(function(cm,i){
+    var d=document.createElement('div'); d.className='coment';
+    d.innerHTML='<div>'+escapar(cm.texto)+'</div><div class="meta">'+escapar(cm.autor||'')+' · '+escapar(cm.data||'')+'</div><button class="del" title="Excluir">×</button>';
+    d.querySelector('.del').addEventListener('click', function(){ enviarOp({tipo:'deleteComentario', cartaoId:c.id, indice:i}).then(reabrir); });
+    box.appendChild(d);
+  });
+  if(!(c.comentarios||[]).length) box.innerHTML='<div class="vazio">Nenhum comentário ainda.</div>';
+}
+function reabrir(){ if(cartaoAberto){ var r=acharCartaoLocal(cartaoAberto); if(r) renderComents(r.cartao); } }
+function escapar(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+document.getElementById('mAddComent').addEventListener('click', function(){
+  var inp=document.getElementById('mNovoComent'); var t=inp.value.trim(); if(!t||!cartaoAberto) return;
+  inp.value=''; enviarOp({tipo:'addComentario', cartaoId:cartaoAberto, texto:t}).then(reabrir);
+});
+document.getElementById('mNovoComent').addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('mAddComent').click(); } });
+
+document.getElementById('mSalvar').addEventListener('click', function(){
+  if(!cartaoAberto) return;
+  enviarOp({tipo:'updateCartao', cartaoId:cartaoAberto,
+    titulo:document.getElementById('mTitulo').value.trim()||'Sem título',
+    desc:document.getElementById('mDesc').value, etiquetas:window._etqTemp.slice()});
+  fecharModal();
+});
+document.getElementById('mApagar').addEventListener('click', function(){
+  if(!cartaoAberto) return;
+  if(confirm('Excluir este cartão?')){ enviarOp({tipo:'deleteCartao', cartaoId:cartaoAberto}); fecharModal(); }
+});
+document.getElementById('fecharModal').addEventListener('click', fecharModal);
+overlay.addEventListener('click', function(e){ if(e.target===overlay) fecharModal(); });
+document.addEventListener('keydown', function(e){ if(e.key==='Escape' && overlay.classList.contains('ativo')) fecharModal(); });
+
+document.getElementById('tituloPainel').addEventListener('click', function(){
+  var novo=prompt('Nome do painel:', estado.titulo); if(novo && novo.trim()) enviarOp({tipo:'renameBoard', titulo:novo.trim()});
+});
+
+// --------------------------- Início -------------------------
+tela('telaLogin');
+window.addEventListener('load', iniciarGoogle);
+</script>
+</body>
+</html>
